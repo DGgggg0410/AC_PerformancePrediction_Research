@@ -1,0 +1,23 @@
+# 忽略虚拟环境
+venv/
+.venv/
+
+# 忽略 Python 缓存
+__pycache__/
+*.pyc
+
+# 忽略临时数据和输出文件（建议只传代码，不传 TB 级的数据）
+data/
+*/interim/
+*/output/
+Model_Comparison_Analysis/output_final_comparison/
+*.csv
+*.png
+*.pt
+*.joblib
+*.npy
+
+# 忽略本地编辑器设置
+.vscode/
+.env
+pyrightconfig.json
