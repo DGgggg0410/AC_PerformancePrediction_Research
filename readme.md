@@ -1,90 +1,81 @@
-
-# 沥青混合料疲劳寿命预测研究：LSTM vs. Transformer
-
-本研究项目基于 Python 与 PyTorch 框架，对比了 **LSTM (长短期记忆网络)** 与 **Transformer (自注意力模型)** 在沥青路面疲劳寿命预测中的应用。项目不仅关注预测精度，还通过 **SHAP (Shapley Additive Explanations)** 算法量化了各材料参数（如温度、油石比等）对寿命的影响。
-
-📂 目录结构说明
-
-AC_PerformancePrediction_Research/ (项目根目录)
-├── .gitignore                      # 忽略规则文件
-├── README.md                       # 本说明文档
-├── _post_1_model_comparison.py     # 跨模型指标汇总
-├── _post_2_residual_comparison.py   # 残差分布统计分析
-├── _post_3_advanced_model_analysis.py # 综合科研对比绘图
-├── Asphalt_LSTM_SHAP_Sequential/   # 子目录1：LSTM 模块
-│   ├── _1_config.py ~ _8_shap_analyzer.py
-│   └── interim/                    # LSTM 运行产生的中间数据
-└── Asphalt_Transformer_SHAP_Coupling/ # 子目录2：Transformer 模块
-    ├── _1_config.py ~ _8_shap_analyzer.py
-    └── interim/                    # Transformer 运行产生的中间数据
-
-
-
-## 📂 项目模块与运行环境
-
-为确保路径引用的准确性，执行不同阶段的代码时必须切换到对应的**根目录**：
-
-实验阶段  |	根目录名称	                                        |   说明
-第一组：  |  LSTM	Asphalt_LSTM_SHAP_Sequential	           |   运行脚本 _1 至 _8
-第二组：  |  Transformer	Asphalt_Transformer_SHAP_Coupling  |  运行脚本 _1 至 _8
-对比分析  |	AC_PerformancePrediction_Research	               |   运行 _post 脚本
----
-
-## 🚀 详细运行步骤
-
-### 第一阶段：LSTM 模型全流程
-
-**根目录切换至：`Asphalt_LSTM_SHAP_Sequential**`
-
-1. **`_1_config.py`**：初始化实验环境，创建 `data/`、`interim/`、`output/` 文件夹并配置全局参数。
-2. **`_2_data_processor.py`**：生成或加载沥青样本数据，执行 Min-Max 归一化，并保存为 `.pt` 张量。
-3. **`_3_lstm_model.py`**：定义 `AsphaltLSTM` 模型类，自动校验输入输出张量维度。
-4. **`_4_lstm_hyperparam_tuning.py`**：执行自动化网格搜索，寻找最优的学习率、层数及隐藏层维度，并保存最优权重。
-5. **`_5_lstm_predictor.py`**：加载最优模型权重，对测试集进行预测，并保存预测结果至中间文件夹。
-6. **`_6_lstm_trainer.py`**：执行标准的模型训练流程，记录每轮（Epoch）的损失值。
-7. **`_7_lstm_evaluator.py`**：评估模型性能，绘制 Loss 曲线图及预测散点图（Regression Plot）。
-8. **`_8_lstm_shap_analyzer.py`**：利用 SHAP 库解释模型，产出特征贡献度蜂群图及依赖分析图。
+明白你的意思了，这份 `README.md` 已经完全去掉了“终端命令”的内容，改为针对 **VS Code 环境下直接点击运行** 的直观描述，并且明确了所有操作均在根目录视角下进行。
 
 ---
 
-### 第二阶段：Transformer 模型全流程
+# 沥青混合料疲劳寿命预测研究 (AC_PerformancePrediction_Research)
 
-**根目录切换至：`Asphalt_Transformer_SHAP_Coupling**`
+本项目实现了基于 **LSTM** 和 **Transformer** 的沥青混合料疲劳寿命预测。项目采用统一的工程化结构，支持在 VS Code 中直接运行所有子项目脚本，并集成 **SHAP** 解释性框架。
 
-1. **`_1_config.py`**：初始化 Transformer 专属的目录结构与配置。
-2. **`_2_data_processor.py`**：处理 Transformer 训练所需的时序数据（保持与 LSTM 组数据逻辑一致）。
-3. **`_3_transformer_model.py`**：定义包含位置编码（Positional Encoding）的 `AsphaltTransformer` 模型。
-4. **`_4_transformer_hyperparam_tuning.py`**：调优 Transformer 核心参数（如多头注意力头数 `NHEAD`、编码器层数等）。
-5. **`_5_predict_with_best_model.py`**：利用最优 Transformer 模型生成预测序列并反归一化。
-6. **`_6_transformer_trainer.py`**：执行训练逻辑，捕捉 Transformer 在大数据量下的收敛特性。
-7. **`_7_transformer_evaluator.py`**：计算 Transformer 的 、RMSE 等指标，绘制性能可视化图表。
-8. **`_8_transformer_shap_analyzer.py`**：分析自注意力机制对沥青材料特征的关注分布。
+## 📂 项目目录结构
+
+```text
+AC_PerformancePrediction_Research/
+├── Asphalt_LSTM_SHAP_Sequential/         # LSTM 项目文件夹 (8个代码文件)
+├── Asphalt_Transformer_SHAP_Coupling/    # Transformer 项目文件夹 (8个代码文件)
+├── Model_Comparison_Analysis/            # 跨模型对比分析文件夹
+├── venv/                                 # 统一虚拟环境
+├── .gitignore                            # Git 忽略配置（已跳过 venv 和大文件）
+└── readme.md                             # 本说明文档
+
+```
+
+## 🚀 VS Code 运行指南
+
+**核心原则**：请始终在 VS Code 中打开 `AC_PerformancePrediction_Research` **总根目录**。脚本已内置路径对齐逻辑，无论文件在哪个子目录下，直接在 VS Code 编辑器中点击“运行”按钮即可。
+
+### 第一阶段：完成 LSTM 模型流程
+
+依次打开 `Asphalt_LSTM_SHAP_Sequential` 文件夹下的脚本并运行：
+
+1. **`_1_config.py`** 直到 **`_4_hyperparameter_tuner.py`**：完成数据预处理、模型定义及超参数自动搜寻。
+
+### ⚠️ 第二阶段：手动调参 (LSTM)
+
+运行完 Step 4 后，根据 `output` 文件夹中记录的**最优超参数组合**，手动修改并依次运行后续脚本：
+5. **`_5_final_trainer.py`**：**需手动更新代码中的最佳参数**，训练最终权重。
+6. **`_6_evaluator.py`**：**需手动更新代码中的最佳参数**，评估模型。
+7. **`_7_visualizer.py`**：**需手动更新代码中的最佳参数**，生成预测可视化图表。
+8. **`_8_shap_analyzer.py`**：**需手动更新代码中的最佳参数**，生成 SHAP 可解释性数据。
+
+---
+
+### 第三阶段：完成 Transformer 模型流程
+
+依次打开 `Asphalt_Transformer_SHAP_Coupling` 文件夹下的脚本并运行：
+
+1. **`_1_config.py`** 直到 **`_4_hyperparameter_tuner.py`**。
+
+### ⚠️ 第四阶段：手动调参 (Transformer)
+
+同样地，根据 Transformer 模型 Step 4 的结果，**手动更新脚本中的参数**后，继续运行：
+5. **`_5_final_trainer.py`** 直到 **`_8_shap_analyzer.py`**。（**需手动更新代码中的最佳参数**）
 
 ---
 
-### 第三阶段：综合对比分析（Post-Analysis）
+### 第五阶段：跨模型对比分析
 
-**根目录切换至：`AC_PerformancePrediction_Research**`
+当两个模型的 Step 8 都运行完毕，打开 `Model_Comparison_Analysis` 文件夹运行对比脚本：
 
-1. **`_post_1_model_comparison_metrics.py`**：跨目录读取两个模型的 CSV 结果，生成综合性能评估对比报表。
-2. **`_post_2_residual_distribution_comparison.py`**：对比两模型的预测残差（Residuals），通过核密度估计（KDE）分析误差稳定性。
-3. **`_post_3_advanced_model_analysis.py`**：**核心汇总脚本**。生成全实验最终对比大图，包含：
-* 两模型预测精度（）直观对比图。
-* 两模型特征关注度（SHAP Importance）科学对比图。
+1. **`_post_1_model_comparison_metrics.py`**：生成 `final_model_comparison_report.csv` 性能对比表。
+2. **`_post_2_residual_distribution_comparison.py`**：生成残差概率密度曲线，对比模型稳定性。
+3. **`_post_3_advanced_model_analysis.py`**：生成特征关注度对比图，分析决策机制差异。
 
+## 🛠️ 技术说明
 
-
----
-
-## 📝 产出说明
-
-* **图像资源**：各阶段生成的 `.png` 图表均存放在对应根目录的 `output/` 文件夹下。
-* **中间数据**：`.pth`（权重）、`.joblib`（归一化器）及 `.pt`（张量数据）存放在 `interim/` 文件夹。
-* **最终报告**：最终对比图表保存在 `output_final_comparison/` 文件夹中，可直接用于学术论文撰写。
+* **路径支持**：项目已配置 `sys.path` 自动向上寻找根目录，VS Code 编辑器中的黄线（无法解析导入）不影响实际运行。
+* **数据存储**：中间文件存储在各子文件夹的 `interim` 目录中，最终对比结果保存在 `Model_Comparison_Analysis/output_final_comparison` 下。
+* **SHAP 分析**：通过对比可以发现模型对“温度”和“应力水平”等特征的关注权重差异。
 
 ---
 
-**提示：** 运行前请确保安装了必备库：`torch`, `shap`, `seaborn`, `joblib`, `pandas`, `matplotlib`, `scikit-learn`。
 
----
- 联系方式：17635150410@163.com
+**下一步建议：**
+现在你可以放心地按照这份文档的顺序在 VS Code 里检查代码并进行最后的测试运行了。上传 GitHub 时，只要确认 `.gitignore` 生效（源代码管理器数字恢复正常），就可以进行最后的推送！祝你这一阶段圆满收官！
+
+
+疑问点：
+你可能会疑惑数据从哪来的，代码文件1、2生成虚拟数据，所以其实这是简单的初步模拟，下一步我将继续跟进将真实数据导入文件，运行后查看结果。
+
+**联系**: 17635150410@163.com
+
+**日期**: 2026-01-14
