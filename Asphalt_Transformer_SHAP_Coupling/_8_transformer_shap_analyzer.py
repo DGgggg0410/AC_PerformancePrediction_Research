@@ -1,30 +1,28 @@
 # -*- coding: utf-8 -*-
-# 步骤8：Transformer模型SHAP分析+特征贡献度
-# 运行成功后：全流程完成，生成SHAP可解释性结果
+# 步骤8：Transformer模型SHAP分析 (SCI 1区视觉美化-中文版)
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import joblib
 import os
 import shap
-# 【仅新增】引入标准绝对路径
-from _1_config import INTERIM_DIR, OUTPUT_DIR
+from matplotlib import gridspec 
 
-plt.rcParams['font.sans-serif'] = ['SimHei'] 
+# 保持对中文的支持
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial'] 
 plt.rcParams['axes.unicode_minus'] = False
 from _3_transformer_model import AsphaltTransformer
+from _1_config import INTERIM_DIR, OUTPUT_DIR
 
 # ---------------------- 前置校验+加载数据 ----------------------
 def check_prerequisite():
     """校验步骤4是否完成"""
     required_files = ["step4_best_transformer_model.pth", "step2_X_test_tensor.pt"]
     for file in required_files:
-        # 【最小修改】使用标准路径校验
         file_path = os.path.join(INTERIM_DIR, file)
         if not os.path.exists(file_path):
             print(f"错误！缺少中间产物：{file_path}，请先运行对应步骤")
             exit(1)
-    # 加载参数+数据
     params = joblib.load(os.path.join(INTERIM_DIR, "step1_params.joblib"))
     interim_data = {
         "model_weights": torch.load(os.path.join(INTERIM_DIR, "step4_best_transformer_model.pth")),
@@ -35,105 +33,98 @@ def check_prerequisite():
 def shap_analysis(params_dict, interim_data):
     """进行SHAP分析并绘图"""
     # --- 1. 提取基础参数 ---
-    INPUT_DIM = params_dict["INPUT_DIM"]
-    SEQ_LEN = params_dict["SEQ_LEN"]
-    OUTPUT_DIM = params_dict["OUTPUT_DIM"]
+    INPUT_DIM, SEQ_LEN, OUTPUT_DIM = params_dict["INPUT_DIM"], params_dict["SEQ_LEN"], params_dict["OUTPUT_DIM"]
     
-    # --- 2. 手动覆盖为最优参数 (必须与调优及训练脚本一致) ---
-    D_MODEL = 64            
-    NHEAD = 2               
-    NUM_ENCODER_LAYERS = 1  
-    DROPOUT_RATE = 0.1      
-    # -------------------------------------------------------------
+    # --- 2. 手动覆盖为最优参数 ---
+    D_MODEL, NHEAD, NUM_ENCODER_LAYERS, DROPOUT_RATE = 64, 2, 1, 0.1
 
     # --- 3. 初始化模型结构 ---
-    model = AsphaltTransformer(
-        INPUT_DIM,           
-        D_MODEL,             
-        NHEAD,               
-        NUM_ENCODER_LAYERS,  
-        SEQ_LEN,             
-        OUTPUT_DIM,          
-        DROPOUT_RATE         
-    )
-    
-    # --- 4. 加载权重 ---
+    model = AsphaltTransformer(INPUT_DIM, D_MODEL, NHEAD, NUM_ENCODER_LAYERS, SEQ_LEN, OUTPUT_DIM, DROPOUT_RATE)
     model.load_state_dict(interim_data["model_weights"])
     model.eval()
     
-    # 2. 准备数据
+    # 准备数据
     X_test = interim_data["X_test"]
     num_samples = 30 
     X_sample = X_test[:100].detach()
     background = X_sample[:20]
     test_samples = X_sample[:num_samples]
     
-    # 3. 计算 SHAP 值
+    # 计算 SHAP 值
     explainer = shap.GradientExplainer(model, background)
     shap_values_raw = explainer.shap_values(test_samples)
     shap_values = shap_values_raw[0] if isinstance(shap_values_raw, list) else shap_values_raw
-    
-    # 【最小修改】使用标准路径保存
+
     np.save(os.path.join(INTERIM_DIR, "shap_values.npy"), shap_values)
-    print(f"✅ Transformer SHAP值已保存至: {os.path.join(INTERIM_DIR, 'shap_values.npy')}")
+    print(f"✅ Transformer SHAP值已保存")
     
-    # 4. 关键：维度压缩 (30, 10, 8) -> (30, 8)
+    # 维度压缩
     shap_values_2d = np.mean(shap_values, axis=1) 
     X_display = test_samples.numpy().mean(axis=1) 
+    if shap_values_2d.ndim == 3: shap_values_2d = shap_values_2d.squeeze(-1)
     
-    # 放大倍数
-    scale_factor = 1000
-    shap_values_2d = shap_values_2d * scale_factor
-    
-    full_feature_names = ["油石比(%)", "空隙率(%)", "矿粉用量(%)", "沥青型号", "骨料级配", "温度(℃)", "应力水平(MPa)", "劲度模量"]
-    
-    # ================ 压缩SHAP值维度（核心修复） ================
-    if len(shap_values_2d.shape) > 2:
-        shap_values_2d = shap_values_2d.squeeze(-1)  
-    
-    # ------------------ 5. 绘图：全局贡献图 (Summary Plot) ------------------
-    plt.close('all')
-    plt.figure(figsize=(12, 10))
+    # 修改为中文标签
+    full_feature_names = ["油石比", "空隙率", "矿粉用量", "沥青型号", "骨料级配", "温度", "应力水平", "劲度模量"]
 
-    shap.summary_plot(
-        shap_values_2d, 
-        X_display,
-        feature_names=full_feature_names,
-        plot_type="dot",
-        show=False,
-    )
-    plt.title(f"Transformer模型特征贡献全局分析 (数值已放大 {scale_factor} 倍)", fontsize=14)
-    plt.xlabel("SHAP值 (对疲劳寿命的影响)", fontsize=12)
+    # ------------------ 5. 绘图：全局贡献图 ------------------
+    plt.close('all')
+    plt.figure(figsize=(10, 8))
+    shap.summary_plot(shap_values_2d, X_display, feature_names=full_feature_names, plot_type="dot", show=False)
+    plt.title("Transformer特征重要性全局分析", fontsize=14, fontweight='bold')
     plt.tight_layout()
-    # 【路径修改】
-    plt.savefig(os.path.join(OUTPUT_DIR, "transformer_shap_summary.png"), dpi=300)
+    plt.savefig(os.path.join(OUTPUT_DIR, "transformer_shap_summary.png"), dpi=600)
     plt.close()
     
-    # ------------------ 6. 绘图：油石比依赖图 (Dependence Plot) ------------------
-    plt.figure(figsize=(10, 6))
-    shap.dependence_plot(
-        0, # 第0个特征：油石比
-        shap_values_2d, 
-        X_display, 
-        feature_names=full_feature_names, 
-        interaction_index=None, 
-        show=False,
-    )
-    plt.title("油石比与疲劳寿命的边际效应分析")
-    # 【路径修改】
-    plt.savefig(os.path.join(OUTPUT_DIR, "transformer_shap_dependence_oil_stone.png"), dpi=300, bbox_inches='tight')
-    plt.close()
+    # ------------------ 6. 2x4 高级依赖图矩阵 (中文SCI风格) ------------------
+    print("正在生成 2x4 高级特征效应矩阵图...")
+    fig = plt.figure(figsize=(18, 9))
+    gs = gridspec.GridSpec(2, 4, wspace=0.35, hspace=0.4)
     
-    print(f"SHAP分析圆满完成！结果已存入: {OUTPUT_DIR}")
+    # Y轴同步逻辑：保持与核心特征一致的观察尺度
+    core_idx = [0, 1, 5, 6] # 油石比, 空隙率, 温度, 应力
+    y_limit = np.max(np.abs(shap_values_2d[:, core_idx])) * 1.1
+
+    for i in range(len(full_feature_names)):
+        ax = fig.add_subplot(gs[i])
+        x_data, y_data = X_display[:, i], shap_values_2d[:, i]
+        
+        # 散点：深蓝色调
+        ax.scatter(x_data, y_data, color='#4C72B0', alpha=0.7, s=45, edgecolors='white', linewidth=0.6)
+        
+        # 趋势线：深红色二次拟合
+        try:
+            z = np.polyfit(x_data, y_data, 2)
+            p = np.poly1d(z)
+            x_range = np.linspace(x_data.min(), x_data.max(), 100)
+            ax.plot(x_range, p(x_range), color='#C44E52', lw=2.5, alpha=0.9)
+        except: pass
+            
+        ax.axhline(0, color='black', linestyle='--', linewidth=0.8, alpha=0.3)
+        
+        # 子图编号 + 中文标题
+        ax.set_title(f"({chr(97+i)}) {full_feature_names[i]}", loc='left', fontsize=13, fontweight='bold')
+        ax.set_xlabel("特征量值", fontsize=11)
+        ax.set_ylabel("SHAP Value", fontsize=11)
+        
+        if i in core_idx: ax.set_ylim(-y_limit, y_limit)
+            
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(axis='y', linestyle=':', alpha=0.4)
+
+    plt.suptitle("Transformer-SHAP 沥青疲劳寿命边际效应分析", fontsize=16, fontweight='bold', y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.savefig(os.path.join(OUTPUT_DIR, "transformer_feature_dependence_matrix_2x4.png"), dpi=600, bbox_inches='tight')
+    plt.close()
+
+    print(f"SHAP分析圆满完成！\n图片已保存至: {OUTPUT_DIR}\n包含：summary图与2x4矩阵图 (600 DPI)")
 
 if __name__ == "__main__":
-    # 确保输出目录存在
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-        
     print("正在初始化环境并加载模型...")
     params, interim_data = check_prerequisite()
     
-    print("正在开始 SHAP 分析，这可能需要 1-2 分钟...")
+    print("正在开始 SHAP 分析...")
     shap_analysis(params, interim_data)
     
-    print("程序运行结束！请检查 output 目录。")
+    print("程序运行结束！")
