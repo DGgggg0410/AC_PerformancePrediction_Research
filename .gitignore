@@ -21,3 +21,22 @@ Model_Comparison_Analysis/output_final_comparison/
 .vscode/
 .env
 pyrightconfig.json
+# 原始数据库文件（太大，不上传）
+data_LTPP/
+*.zip
+*.mdb
+*.accdb
+*.xlsx
+
+# 输出结果（图片、模型权重等）
+output_quick_test/
+
+# 生成的临时脚本
+generate_paper.py
+generate_report.py
+quick_test_traffic.py
+
+# 旧代码目录（已删除）
+Asphalt_LSTM_SHAP_Sequential/
+Asphalt_Transformer_SHAP_Coupling/
+Model_Comparison_Analysis/
