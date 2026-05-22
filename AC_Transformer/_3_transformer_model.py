@@ -22,7 +22,7 @@ import torch.nn as nn  # 神经网络模块
 import math  # 数学函数
 
 # 动态获取输入维度，与训练配置保持一致
-from AC_Transformer._1_config import INPUT_DIM
+from _1_config import INPUT_DIM
 
 
 # ============================================================================

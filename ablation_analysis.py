@@ -77,8 +77,8 @@ def load_ablation_results():
         ]
 
     # Baseline 固定值（实际运行结果）
-    lstm_baseline      = {'r2': 0.9562, 'rmse': 0.1461, 'mae': 0.0358}
-    transformer_baseline = {'r2': 0.9582, 'rmse': 0.1427, 'mae': 0.0410}
+    lstm_baseline  = {'r2': 0.7172, 'rmse': 0.3797, 'mae': 0.2201}
+    transformer_baseline = {'r2': 0.7473, 'rmse': 0.3589, 'mae': 0.1890}
 
     lstm_results      = {'baseline': lstm_baseline}
     transformer_results = {'baseline': transformer_baseline}
@@ -150,19 +150,19 @@ def plot_fig1_r2_comparison(lstm_results, transformer_results, experiments, lstm
     x = np.arange(len(exp_labels))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, lstm_r2,  width, label='LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
+    bars1 = ax.bar(x - width/2, lstm_r2,  width, label='S-LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
     bars2 = ax.bar(x + width/2, trans_r2, width, label='Transformer', color=COLOR_TRANS, edgecolor='black', linewidth=0.8)
 
     # 基准线
-    ax.axhline(y=lstm_baseline['r2'],       color=COLOR_LSTM,  linestyle='--', linewidth=1.5, alpha=0.7, label=f'LSTM Baseline (R2={lstm_baseline["r2"]:.4f})')
-    ax.axhline(y=transformer_baseline['r2'], color=COLOR_TRANS, linestyle='--', linewidth=1.5, alpha=0.7, label=f'Transformer Baseline (R2={transformer_baseline["r2"]:.4f})')
+    ax.axhline(y=lstm_baseline['r2'],       color=COLOR_LSTM,  linestyle='--', linewidth=1.5, alpha=0.7, label=f'S-LSTM Baseline (R$^2$={lstm_baseline["r2"]:.4f})')
+    ax.axhline(y=transformer_baseline['r2'], color=COLOR_TRANS, linestyle='--', linewidth=1.5, alpha=0.7, label=f'Transformer Baseline ($^2$={transformer_baseline["r2"]:.4f})')
 
-    ax.set_ylabel('R2', fontsize=13)
-    ax.set_title('Ablation Study: R2 Comparison - LSTM vs Transformer', fontsize=14, fontweight='bold')
+    ax.set_ylabel(r'R$^2$', fontsize=13)
+    ax.set_title('Ablation Study: R$^2$ Comparison - S-LSTM vs Transformer', fontsize=14, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(exp_labels, fontsize=11)
     ax.legend(loc='lower left', fontsize=10)
-    ax.set_ylim(0.88, 1.01)
+    ax.set_ylim(0.60, 0.80)
     ax.tick_params(axis='y', labelsize=11)
     ax.grid(axis='y', alpha=0.3)
 
@@ -193,7 +193,7 @@ def plot_fig2_rmse_comparison(lstm_results, transformer_results, experiments, ls
     x = np.arange(len(exp_labels))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, lstm_rmse,  width, label='LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
+    bars1 = ax.bar(x - width/2, lstm_rmse,  width, label='S-LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
     bars2 = ax.bar(x + width/2, trans_rmse, width, label='Transformer', color=COLOR_TRANS, edgecolor='black', linewidth=0.8)
 
     ax.axhline(y=lstm_baseline['rmse'],       color=COLOR_LSTM,  linestyle='--', linewidth=1.5, alpha=0.7, label=f'LSTM Baseline (RMSE={lstm_baseline["rmse"]:.4f})')
@@ -236,7 +236,7 @@ def plot_fig3_mae_comparison(lstm_results, transformer_results, experiments, lst
     x = np.arange(len(exp_labels))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, lstm_mae,  width, label='LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
+    bars1 = ax.bar(x - width/2, lstm_mae,  width, label='S-LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
     bars2 = ax.bar(x + width/2, trans_mae, width, label='Transformer', color=COLOR_TRANS, edgecolor='black', linewidth=0.8)
 
     ax.axhline(y=lstm_baseline['mae'],       color=COLOR_LSTM,  linestyle='--', linewidth=1.5, alpha=0.7, label=f'LSTM Baseline (MAE={lstm_baseline["mae"]:.4f})')
@@ -286,7 +286,7 @@ def plot_fig4_r2_change(lstm_results, transformer_results, experiments, lstm_bas
     x = np.arange(len(exp_labels))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, lstm_r2_drop,  width, label='LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
+    bars1 = ax.bar(x - width/2, lstm_r2_drop,  width, label='S-LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
     bars2 = ax.bar(x + width/2, trans_r2_drop, width, label='Transformer', color=COLOR_TRANS, edgecolor='black', linewidth=0.8)
 
     # 0 值参考线
@@ -297,8 +297,8 @@ def plot_fig4_r2_change(lstm_results, transformer_results, experiments, lstm_bas
     max_abs = max(abs(v) for v in all_drops) * 1.25
     ax.set_ylim(-max_abs, max_abs)
 
-    ax.set_ylabel('R2 Change (Baseline - Ablation)', fontsize=13)
-    ax.set_title('R2 Change Relative to Baseline\n(Positive = Performance Drop, Negative = Improvement)', fontsize=13, fontweight='bold')
+    ax.set_ylabel(r'R$^2$ Change (Baseline - Ablation)', fontsize=13)
+    ax.set_title(r'R$^2$ Change Relative to Baseline\n(Positive = Performance Drop, Negative = Improvement)', fontsize=13, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(exp_labels, fontsize=11)
     ax.legend(loc='upper left', fontsize=10)
@@ -367,12 +367,12 @@ def plot_fig5_features_vs_r2(lstm_results, transformer_results, experiments, lst
                     ha='center', fontsize=9, color=COLOR_TRANS)
 
     ax.set_xlabel('Number of Features', fontsize=13)
-    ax.set_ylabel('R2', fontsize=13)
-    ax.set_title('Model Performance vs. Number of Features', fontsize=14, fontweight='bold')
+    ax.set_ylabel(r'R$^2$', fontsize=13)
+    ax.set_title(r'Model Performance vs. Number of Features (R$^2$)', fontsize=14, fontweight='bold')
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
     ax.tick_params(axis='both', labelsize=11)
-    ax.set_ylim(0.88, 1.01)
+    ax.set_ylim(0.60, 0.80)
 
     plt.tight_layout()
     path = os.path.join(FIGURES_DIR, 'fig5_features_vs_r2.png')
@@ -415,11 +415,11 @@ def plot_fig6_importance_comparison(lstm_results, transformer_results, lstm_base
     x = np.arange(len(categories))
     width = 0.35
 
-    bars1 = ax.bar(x - width/2, lstm_vals,  width, label='LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
+    bars1 = ax.bar(x - width/2, lstm_vals,  width, label='S-LSTM',       color=COLOR_LSTM, edgecolor='black', linewidth=0.8)
     bars2 = ax.bar(x + width/2, trans_vals, width, label='Transformer', color=COLOR_TRANS, edgecolor='black', linewidth=0.8)
 
     ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-    ax.set_ylabel('R2 Drop (Baseline - Ablation)', fontsize=13)
+    ax.set_ylabel(r'R$^2$ Drop (Baseline - Ablation)', fontsize=13)
     ax.set_title('Feature Category Importance\n(Positive = Category Helps, Negative = Category Hurts)', fontsize=13, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(labels_en, fontsize=11)

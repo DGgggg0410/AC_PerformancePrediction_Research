@@ -41,6 +41,9 @@ def load_and_build_sequences():
     df = pd.read_csv(DATA_PATH, low_memory=False)
     print(f"原始数据: {len(df)} 行")
 
+    # 确保SHRP_ID为字符串类型
+    df['SHRP_ID'] = df['SHRP_ID'].astype(str)
+
     # 按路段和时间排序
     df = df.sort_values(['SHRP_ID', 'VISIT_DATE']).reset_index(drop=True)
 
@@ -48,13 +51,25 @@ def load_and_build_sequences():
     X = df[FEATURE_COLS].values
     y = df[TARGET_COL].values
 
-    # 标准化特征
+    # 【修复】先确定训练集路段，再基于训练集拟合标准化参数
+    section_counts = df.groupby('SHRP_ID').size().reset_index(name='count')
+    section_counts = section_counts.sample(
+        frac=1, random_state=RANDOM_SEED
+    ).reset_index(drop=True)
+
+    total_sections = len(section_counts)
+    train_section_end = int(total_sections * TRAIN_RATIO)
+
+    train_shrp_ids = set(section_counts['SHRP_ID'][:train_section_end])
+    train_mask = df['SHRP_ID'].isin(train_shrp_ids)
+
+    # 标准化特征（仅在训练集上拟合）
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    scaler.fit(X[train_mask])           # 仅基于训练集拟合
+    X_scaled = scaler.transform(X)      # 用训练集参数转换全部数据
 
     # 构建滑动窗口序列
     print(f"构建时序序列 (SEQ_LEN={SEQ_LEN})...")
-    # 【修复】传入df以确保按路段边界构建序列（与LSTM一致）
     sequences, targets = build_sequences(X_scaled, y, SEQ_LEN, df)
     print(f"序列数量: {len(sequences)}")
 

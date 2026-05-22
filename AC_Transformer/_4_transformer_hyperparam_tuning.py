@@ -457,7 +457,7 @@ def main(search_method='random', n_trials=20):
         print(f"最佳模型已保存到: {best_model_path}")
 
     print(f"\n总调优时间: {total_time:.1f}s ({total_time/60:.1f}min)")
-    print("\n下一步: 运行 python _6_trainer.py 使用最佳超参数训练最终模型")
+    print("\n下一步: 运行 python _5_trainer.py 使用最佳超参数训练最终模型")
 
     return best_params, results
 

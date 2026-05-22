@@ -98,14 +98,14 @@ NUM_HEADS = 8
 
 # Transformer编码器层数
 # 调优后最佳值：1层即可捕捉时序依赖，过多层反而过拟合
-NUM_LAYERS = 1
+NUM_LAYERS = 2
 
 # 前馈网络维度（Feed-Forward Network）
 # 通常为TRANSFORMER_DIM的2-4倍
-FF_DIM = 512
+FF_DIM = 256
 
 # Dropout比例：调优后最佳值0.3，防止过拟合
-DROPOUT = 0.3
+DROPOUT = 0.2
 
 # 输出维度
 OUTPUT_DIM = 1
@@ -122,7 +122,7 @@ BATCH_SIZE = 256
 EPOCHS = 100
 
 # 学习率：超参数调优最佳值
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0005
 
 # 权重衰减（正则化）
 WEIGHT_DECAY = 1e-4

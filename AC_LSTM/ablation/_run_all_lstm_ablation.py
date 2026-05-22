@@ -2,12 +2,18 @@
 LSTM消融实验 - 统一运行器
 运行所有LSTM消融实验并生成对比报告
 
+【重要】数据加载方式：
+使用主模型的 _2_sequence_builder.py 加载并划分数据，确保所有消融实验
+使用与主模型完全相同的训练/验证/测试集划分。每个实验仅通过特征维度
+切片来改变输入特征，数据集划分完全相同。
+
 实验列表：
-1. ablation_no_climate - 去掉气候因素（11个特征）
-2. ablation_no_structure - 去掉结构因素（14个特征）
-3. ablation_no_geographic - 去掉地理因素（16个特征）
-4. ablation_only_temporal - 只保留时序特征（3个特征）
-5. ablation_no_climate_structure - 去掉气候和结构因素（6个特征）
+1. ablation_baseline - 全特征基线（19个特征）
+2. ablation_no_climate - 去掉气候因素（11个特征）
+3. ablation_no_structure - 去掉结构因素（14个特征）
+4. ablation_no_geographic - 去掉地理因素（16个特征）
+5. ablation_only_temporal - 只保留时序特征（3个特征）
+6. ablation_no_climate_structure - 去掉气候和结构因素（6个特征）
 
 作者: 研究团队
 日期: 2024
@@ -21,36 +27,36 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'WenQuanYi Micro Hei', 'DejaVu Sans']
 matplotlib.rcParams['axes.unicode_minus'] = False
-import pickle
-
-np.random.seed(42)
-torch.manual_seed(42)
 
 
 class LSTMModel(nn.Module):
-    """LSTM模型"""
+    """LSTM模型（与主模型结构完全一致）"""
     def __init__(self, input_dim, hidden_dim, num_layers, dropout, output_dim):
         super(LSTMModel, self).__init__()
         self.lstm = nn.LSTM(
             input_dim, hidden_dim, num_layers,
             batch_first=True, dropout=dropout if num_layers > 1 else 0
         )
-        self.fc = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(dropout)
+        # 与主模型一致：中间加 128→64 映射层
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),  # 128 → 64
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, output_dim)   # 64 → 1
+        )
 
     def forward(self, x):
-        out, _ = self.lstm(x)
-        out = self.dropout(out[:, -1, :])
-        out = self.fc(out)
+        out, (hidden, cell) = self.lstm(x)
+        out = self.fc(hidden[-1])  # 取最后一层隐藏状态
         return out
 
 
-class LTPPSequenceDataset:
+class LTPPSequenceDataset(Dataset):
     """简化版数据集"""
     def __init__(self, sequences, targets):
         self.sequences = torch.FloatTensor(sequences)
@@ -63,142 +69,25 @@ class LTPPSequenceDataset:
         return self.sequences[idx], self.targets[idx]
 
 
-def load_data(config_name):
-    """加载消融实验数据"""
-    from sklearn.preprocessing import StandardScaler
-
-    project_dir = r'e:/Visual Studio Code2025/python_program/AC_PerformancePrediction_Research'
-    data_path = os.path.join(project_dir, 'processed_data', 'ltpp_processed_data.csv')
-    output_dir = os.path.join(project_dir, 'AC_LSTM', 'output', config_name)
-
-    # 根据配置获取特征列表
-    if 'no_climate' in config_name:
-        feature_cols = [
-            'PAVEMENT_AGE', 'IRI_LAG_1', 'IRI_LAG_2',
-            'PAVEMENT_FAMILY_ENC', 'TOTAL_THICKNESS', 'AC_THICKNESS',
-            'BASE_THICKNESS', 'NUM_LAYERS',
-            'LATITUDE', 'LONGITUDE', 'ELEVATION'
-        ]
-    elif 'no_structure' in config_name:
-        feature_cols = [
-            'PAVEMENT_AGE', 'IRI_LAG_1', 'IRI_LAG_2',
-            'LATITUDE', 'LONGITUDE', 'ELEVATION',
-            'DEGREE_DAYS_OVER_10C_YR', 'COLDEST_AIR_TEMP', 'HIGH_TEMP_7DAYS',
-            'MIN_SURFACE_50_TEMP', 'FREEZE_INDEX', 'FREEZE_THAW',
-            'PRECIPITATION', 'PRECIP_DAYS', 'EVAPORATION'
-        ]
-    elif 'no_geographic' in config_name:
-        feature_cols = [
-            'PAVEMENT_AGE', 'IRI_LAG_1', 'IRI_LAG_2',
-            'PAVEMENT_FAMILY_ENC', 'TOTAL_THICKNESS', 'AC_THICKNESS',
-            'BASE_THICKNESS', 'NUM_LAYERS',
-            'DEGREE_DAYS_OVER_10C_YR', 'COLDEST_AIR_TEMP', 'HIGH_TEMP_7DAYS',
-            'MIN_SURFACE_50_TEMP', 'FREEZE_INDEX', 'FREEZE_THAW',
-            'PRECIPITATION', 'PRECIP_DAYS', 'EVAPORATION'
-        ]
-    elif 'only_temporal' in config_name:
-        feature_cols = ['PAVEMENT_AGE', 'IRI_LAG_1', 'IRI_LAG_2']
-    elif 'no_climate_structure' in config_name:
-        feature_cols = [
-            'PAVEMENT_AGE', 'IRI_LAG_1', 'IRI_LAG_2',
-            'LATITUDE', 'LONGITUDE', 'ELEVATION'
-        ]
-    else:
-        raise ValueError(f"Unknown config: {config_name}")
-
-    # 加载数据
-    df = pd.read_csv(data_path, low_memory=False)
-    df['SHRP_ID'] = df['SHRP_ID'].astype(str)
-    df = df.sort_values(['SHRP_ID', 'VISIT_DATE']).reset_index(drop=True)
-
-    X = df[feature_cols].values
-    y = df['MRI'].values
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # 构建序列（按路段边界）
-    seq_len = 5
-    sequences, targets = [], []
-    for shrp_id, group_indices in df.groupby('SHRP_ID').groups.items():
-        group_indices = list(group_indices)
-        group_X = X_scaled[group_indices]
-        group_y = y[group_indices]
-
-        if len(group_X) >= seq_len + 1:
-            for i in range(len(group_X) - seq_len):
-                sequences.append(group_X[i:i + seq_len])
-                targets.append(group_y[i + seq_len])
-
-    sequences = np.array(sequences)
-    targets = np.array(targets)
-
-    # 划分数据集
-    section_sample_counts = df.groupby('SHRP_ID').size().reset_index(name='count')
-    section_sample_counts = section_sample_counts.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    total_sections = len(section_sample_counts)
-    train_end = int(total_sections * 0.7)
-    val_end = int(total_sections * 0.85)
-
-    train_shrp_ids = set(section_sample_counts['SHRP_ID'][:train_end])
-    val_shrp_ids = set(section_sample_counts['SHRP_ID'][train_end:val_end])
-
-    # 构建索引映射
-    seq_idx = 0
-    train_idx, val_idx, test_idx = [], [], []
-    current_idx = 0
-
-    for shrp_id in section_sample_counts['SHRP_ID']:
-        section_count = section_sample_counts[section_sample_counts['SHRP_ID'] == shrp_id]['count'].values[0]
-        seq_count = max(0, section_count - seq_len)
-
-        if shrp_id in train_shrp_ids:
-            train_idx.extend(range(current_idx, current_idx + seq_count))
-        elif shrp_id in val_shrp_ids:
-            val_idx.extend(range(current_idx, current_idx + seq_count))
-        else:
-            test_idx.extend(range(current_idx, current_idx + seq_count))
-
-        current_idx += seq_count
-
-    # 划分数据
-    train_seq = np.array([sequences[i] for i in train_idx])
-    train_target = np.array([targets[i] for i in train_idx])
-    val_seq = np.array([sequences[i] for i in val_idx])
-    val_target = np.array([targets[i] for i in val_idx])
-    test_seq = np.array([sequences[i] for i in test_idx])
-    test_target = np.array([targets[i] for i in test_idx])
-
-    print(f"  训练集: {len(train_seq)} | 验证集: {len(val_seq)} | 测试集: {len(test_seq)}")
-
-    # 创建DataLoader
-    train_loader = DataLoader(LTPPSequenceDataset(train_seq, train_target), batch_size=128, shuffle=True)
-    val_loader = DataLoader(LTPPSequenceDataset(val_seq, val_target), batch_size=128, shuffle=False)
-    test_loader = DataLoader(LTPPSequenceDataset(test_seq, test_target), batch_size=128, shuffle=False)
-
-    # 保存scaler
-    os.makedirs(output_dir, exist_ok=True)
-    with open(os.path.join(output_dir, 'scaler.pkl'), 'wb') as f:
-        pickle.dump(scaler, f)
-
-    return train_loader, val_loader, test_loader, len(feature_cols), output_dir
-
-
-def train_and_evaluate(config_name, device):
+def train_and_evaluate(config_name, device, train_loader, val_loader, test_loader, input_dim):
     """训练并评估模型"""
     print(f"\n{'='*60}")
     print(f"运行实验: {config_name}")
     print(f"{'='*60}")
 
-    # 加载数据
-    train_loader, val_loader, test_loader, input_dim, output_dir = load_data(config_name)
+    project_dir = r'e:/Visual Studio Code2025/python_program/AC_PerformancePrediction_Research'
+    output_dir = os.path.join(project_dir, 'AC_LSTM', 'output', config_name)
+    os.makedirs(output_dir, exist_ok=True)
 
-    # 创建模型
-    model = LSTMModel(input_dim, hidden_dim=128, num_layers=2, dropout=0.1, output_dim=1).to(device)
+    # 创建模型（与主模型一致的超参数）
+    model = LSTMModel(input_dim, hidden_dim=128, num_layers=2, dropout=0.2, output_dim=1).to(device)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
+    optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
+
+    # 学习率调度器（与主模型一致）
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=10, min_lr=1e-6
+    )
 
     # 训练
     best_val_loss = float('inf')
@@ -303,11 +192,46 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\n使用设备: {device}")
 
-    # 基准实验（全部特征）
-    baseline_results = None
+    # ========================================================================
+    # 【修复】使用主模型的序列构建器加载数据，确保所有消融实验使用
+    # 与主模型完全相同的训练/验证/测试集划分
+    # ========================================================================
+    sys.path.insert(0, r'e:/Visual Studio Code2025/python_program/AC_PerformancePrediction_Research')
+    from AC_LSTM._2_sequence_builder import load_and_build_sequences, split_data
 
-    # 消融实验列表
+    print("\n" + "="*60)
+    print("加载数据（使用主模型的序列构建器，与主模型完全一致）")
+    print("="*60)
+
+    # 一次性加载数据并划分（19个特征全部参与）
+    sequences, targets, scaler, df = load_and_build_sequences()
+    (train_seq_all, train_target_all), (val_seq_all, val_target_all), (test_seq_all, test_target_all) = \
+        split_data(sequences, targets, df)
+
+    # ========================================================================
+    # 特征索引映射
+    # 与 AC_LSTM._1_config.FEATURE_COLS 顺序一致：
+    #   0:PAVEMENT_AGE     1:IRI_LAG_1         2:IRI_LAG_2
+    #   3:PAVEMENT_FAMILY_ENC
+    #   4:LATITUDE          5:LONGITUDE         6:ELEVATION
+    #   7:DEGREE_DAYS_OVER_10C_YR  8:COLDEST_AIR_TEMP  9:HIGH_TEMP_7DAYS
+    #   10:MIN_SURFACE_50_TEMP
+    #   11:FREEZE_INDEX     12:FREEZE_THAW      13:PRECIPITATION   14:EVAPORATION
+    #   15:TOTAL_THICKNESS  16:AC_THICKNESS     17:BASE_THICKNESS  18:NUM_LAYERS
+    # ========================================================================
+    FEATURE_INDICES = {
+        'ablation_baseline':               list(range(19)),                                  # 全19特征
+        'ablation_no_climate':             [0,1,2,3,4,5,6,15,16,17,18],                      # 去掉7-14（气候）
+        'ablation_no_structure':           [0,1,2,4,5,6,7,8,9,10,11,12,13,14],               # 去掉3,15-18（结构）
+        'ablation_no_geographic':          [0,1,2,3,7,8,9,10,11,12,13,14,15,16,17,18],       # 去掉4-6（地理）
+        'ablation_only_temporal':          [0,1,2],                                          # 只保留时序
+        'ablation_no_climate_structure':   [0,1,2,4,5,6],                                    # 去掉气候+结构
+    }
+    FEATURE_COUNTS = {k: len(v) for k, v in FEATURE_INDICES.items()}
+
+    # 消融实验列表（第一条为全特征基线，后续 ΔR² 均基于内部基线计算）
     experiments = [
+        ('ablation_baseline', '全特征基线\n(19特征)'),
         ('ablation_no_climate', '去掉气候因素\n(11特征)'),
         ('ablation_no_structure', '去掉结构因素\n(14特征)'),
         ('ablation_no_geographic', '去掉地理因素\n(16特征)'),
@@ -318,7 +242,26 @@ def main():
     all_results = []
 
     for exp_name, description in experiments:
-        r2, rmse, mae, n_features = train_and_evaluate(exp_name, device)
+        indices = FEATURE_INDICES[exp_name]
+        n_features = FEATURE_COUNTS[exp_name]
+
+        # 对特征维度（最后一维）进行切片
+        train_seq = train_seq_all[:, :, indices]
+        val_seq = val_seq_all[:, :, indices]
+        test_seq = test_seq_all[:, :, indices]
+
+        # 创建DataLoader（与主模型相同的batch_size）
+        train_loader = DataLoader(
+            LTPPSequenceDataset(train_seq, train_target_all), batch_size=256, shuffle=True
+        )
+        val_loader = DataLoader(
+            LTPPSequenceDataset(val_seq, val_target_all), batch_size=256, shuffle=False
+        )
+        test_loader = DataLoader(
+            LTPPSequenceDataset(test_seq, test_target_all), batch_size=256, shuffle=False
+        )
+
+        r2, rmse, mae, _ = train_and_evaluate(exp_name, device, train_loader, val_loader, test_loader, n_features)
         all_results.append({
             'name': exp_name,
             'description': description,
@@ -328,44 +271,52 @@ def main():
             'mae': float(mae)
         })
 
-    # 创建对比图表
+    # 从内部基线实验获取参考值（与主模型完全一致）
+    baseline = all_results[0]
+    baseline_r2 = baseline['r2']
+    baseline_rmse = baseline['rmse']
+    baseline_mae = baseline['mae']
+    print(f"\n内部基线（与主模型测试集完全一致）: R²={baseline_r2:.4f}, RMSE={baseline_rmse:.4f}, MAE={baseline_mae:.4f}")
+
+    # 创建对比图表（仅对比消融实验，基线用横线表示）
     print(f"\n\n{'='*60}")
     print("消融实验对比汇总")
     print(f"{'='*60}")
 
-    baseline_r2 = 0.9562  # 原始LSTM基准
+    # 排除基线本身，只显示消融实验的对比
+    ablation_results = all_results[1:]
 
-    print(f"\n{'实验名称':<30} {'特征数':<8} {'R^2':<10} {'RMSE':<10} {'MAE':<10} {'R^2下降':<10}")
+    print(f"\n{'实验名称':<30} {'特征数':<8} {'R^2':<10} {'RMSE':<10} {'MAE':<10} {'ΔR²':<10}")
     print("-" * 80)
-    for r in all_results:
+    for r in ablation_results:
         r2_drop = baseline_r2 - r['r2']
         print(f"{r['description']:<30} {r['features']:<8} {r['r2']:<10.4f} {r['rmse']:<10.4f} {r['mae']:<10.4f} {r2_drop:<10.4f}")
 
     # 绘制对比图
     fig, axes = plt.subplots(1, 3, figsize=(16, 6))
 
-    names = [r['description'].replace('\n', ' ') for r in all_results]
-    r2_values = [r['r2'] for r in all_results]
-    rmse_values = [r['rmse'] for r in all_results]
-    mae_values = [r['mae'] for r in all_results]
+    names = [r['description'].replace('\n', ' ') for r in ablation_results]
+    r2_values = [r['r2'] for r in ablation_results]
+    rmse_values = [r['rmse'] for r in ablation_results]
+    mae_values = [r['mae'] for r in ablation_results]
 
     # R^2对比
     bars1 = axes[0].bar(names, r2_values, color='#3498db', edgecolor='black', width=0.6)
-    axes[0].axhline(y=baseline_r2, color='red', linestyle='--', label=f'基准 ({baseline_r2:.4f})')
+    axes[0].axhline(y=baseline_r2, color='red', linestyle='--', label=f'基线 ({baseline_r2:.4f})')
     axes[0].set_ylabel('R^2', fontsize=12)
     axes[0].set_title('R^2 对比 (越高越好)', fontsize=14)
-    axes[0].set_ylim(0.88, 1.02)
+    axes[0].set_ylim(min(r2_values) - 0.02, max(r2_values) + 0.02)
     axes[0].legend(loc='lower right')
     axes[0].tick_params(axis='x', rotation=45, labelsize=10)
     axes[0].tick_params(axis='y', labelsize=10)
     for bar, val in zip(bars1, r2_values):
-        axes[0].text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.003,
+        axes[0].text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.0005,
                     f'{val:.4f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
 
     # RMSE对比
     max_rmse = max(rmse_values) * 1.15
     bars2 = axes[1].bar(names, rmse_values, color='#2ecc71', edgecolor='black', width=0.6)
-    axes[1].axhline(y=0.1461, color='red', linestyle='--', label=f'基准 (0.1461)')
+    axes[1].axhline(y=baseline_rmse, color='red', linestyle='--', label=f'基线 ({baseline_rmse:.4f})')
     axes[1].set_ylabel('RMSE (m/km)', fontsize=12)
     axes[1].set_title('RMSE 对比 (越低越好)', fontsize=14)
     axes[1].set_ylim(0, max_rmse)
@@ -379,7 +330,7 @@ def main():
     # MAE对比
     max_mae = max(mae_values) * 1.15
     bars3 = axes[2].bar(names, mae_values, color='#e74c3c', edgecolor='black', width=0.6)
-    axes[2].axhline(y=0.0358, color='red', linestyle='--', label=f'基准 (0.0358)')
+    axes[2].axhline(y=baseline_mae, color='red', linestyle='--', label=f'基线 ({baseline_mae:.4f})')
     axes[2].set_ylabel('MAE (m/km)', fontsize=12)
     axes[2].set_title('MAE 对比 (越低越好)', fontsize=14)
     axes[2].set_ylim(0, max_mae)
@@ -399,13 +350,13 @@ def main():
 
     # 保存汇总结果
     summary = {
-        'baseline': {'r2': baseline_r2, 'rmse': 0.1461, 'mae': 0.0358, 'features': 19},
-        'ablations': all_results
+        'baseline': {'r2': baseline_r2, 'rmse': baseline_rmse, 'mae': baseline_mae, 'features': 19},
+        'ablations': ablation_results
     }
     with open(os.path.join(output_dir, 'lstm_ablation_summary.json'), 'w', encoding='utf-8') as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
 
-    print("\n所有消融实验完成!")
+    print("\n所有LSTM消融实验完成!")
 
 
 if __name__ == '__main__':

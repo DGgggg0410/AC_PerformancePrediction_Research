@@ -91,7 +91,7 @@ def load_and_build_sequences():
         1. 从CSV文件加载处理后的数据
         2. 按路段和时间排序
         3. 提取特征和目标值
-        4. 对特征进行标准化
+        4. 【修复】先确定训练集路段，再基于训练集拟合标准化参数
         5. 构建滑动窗口序列（按路段边界）
 
     返回:
@@ -114,16 +114,32 @@ def load_and_build_sequences():
     X = df[FEATURE_COLS].values  # 特征矩阵
     y = df[TARGET_COL].values    # 目标向量
 
+    # ========================================================
+    # 【修复】先确定训练集路段，再拟合标准化参数
+    # 与 split_data() 使用相同的随机种子，保证路段划分一致
+    # ========================================================
+    section_counts = df.groupby('SHRP_ID').size().reset_index(name='count')
+    section_counts = section_counts.sample(
+        frac=1, random_state=RANDOM_SEED
+    ).reset_index(drop=True)
+
+    total_sections = len(section_counts)
+    train_section_end = int(total_sections * TRAIN_RATIO)
+
+    train_shrp_ids = set(section_counts['SHRP_ID'][:train_section_end])
+
+    # 创建训练集行掩码（仅用于拟合标准化参数）
+    train_mask = df['SHRP_ID'].isin(train_shrp_ids)
+
     # 标准化特征（Z-score标准化）
     # 公式: z = (x - mean) / std
-    # 使每个特征变为均值为0，标准差为1的分布
-    # 这有助于神经网络的训练稳定性
+    # 【修复】仅在训练集上计算均值和标准差，避免数据泄漏
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    scaler.fit(X[train_mask])              # 仅基于训练集拟合
+    X_scaled = scaler.transform(X)         # 用训练集参数转换全部数据
 
     # 构建滑动窗口序列
     print(f"构建时序序列 (SEQ_LEN={SEQ_LEN})...")
-    # 【修复】传入df以确保按路段边界构建序列
     sequences, targets = build_sequences(X_scaled, y, SEQ_LEN, df)
     print(f"序列数量: {len(sequences)}")
 
