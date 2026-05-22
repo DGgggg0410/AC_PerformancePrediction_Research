@@ -59,20 +59,54 @@ AC_PerformancePrediction_Research/
 | 结构特征 | 5 | 总厚度、沥青层厚度、基层厚度、层数、路面类型 |
 | 地理特征 | 3 | 纬度、经度、海拔 |
 
-## 快速开始
+## 运行顺序
 
-```bash
-# LSTM 训练
-cd AC_LSTM
-python _5_trainer.py
-python _6_predictor.py
-python _7_shap_analyzer.py
+```
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_LSTM
+_0_ltpp_data_loader
+_1_config
+_2_sequence_builder
+_3_lstm_model
+_4_lstm_hyperparam_tuning
+_5_trainer
+_6_predictor
+_7_shap_analyzer
 
-# Transformer 训练
-cd AC_Transformer
-python _5_trainer.py
-python _6_predictor.py
-python _7_shap_analyzer.py
+↓↓↓↓↓↓↓↓↓↓↓↓
+
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_Transformer
+_0_ltpp_data_loader
+_1_config
+_2_sequence_builder
+_3_lstm_model
+_4_lstm_hyperparam_tuning
+_5_trainer
+_6_predictor
+_7_shap_analyzer
+
+↓↓↓↓↓↓↓↓↓↓↓↓
+
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research
+fix_ablation_configs
+
+↓↓↓↓↓↓↓↓↓↓↓↓
+
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_LSTM\ablation
+_run_all_lstm_ablation
+
+↓↓↓↓↓↓↓↓↓↓↓↓
+
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_Transformer\ablation
+_run_all_transformer_ablation
+
+↓↓↓↓↓↓↓↓↓↓↓↓
+
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research
+ablation_analysis
+
+↓↓↓↓↓↓↓↓↓↓↓↓
+E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_LSTM\ablation
+_aadtt_analysis
 ```
 
 ## 引用
