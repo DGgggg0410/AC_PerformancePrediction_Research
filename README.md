@@ -109,12 +109,3 @@ E:\Visual Studio Code2025\python_program\AC_PerformancePrediction_Research\AC_LS
 _aadtt_analysis
 ```
 
-## 引用
-
-```bibtex
-@article{your2024pavement,
-  title={基于LSTM与Transformer的沥青路面国际平整度指数预测研究},
-  author={Your Name},
-  year={2024}
-}
-```
